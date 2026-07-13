@@ -309,6 +309,16 @@
       ]
     },
     {
+      "label": "Assistant",
+      "children": [
+        {
+          "label": "Assistant",
+          "to": "assistant/index",
+          "addedAt": "2026-07-13"
+        }
+      ]
+    },
+    {
       "label": "Middleware",
       "children": [
         {
