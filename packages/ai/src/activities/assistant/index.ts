@@ -37,15 +37,23 @@ export function defineAssistant<const T extends AssistantConfig>(
       (bodyRecord.data as Record<string, unknown> | undefined) ??
       {}
     const capability = forwardedProps.capability
+    // Gate on OWN, DECLARED capabilities only — `capabilities` is
+    // `Object.keys(config)`, so this excludes inherited `Object.prototype`
+    // members (`toString`, `valueOf`, `hasOwnProperty`, `constructor`, …)
+    // that `capability in config` / `Reflect.get(config, capability)` would
+    // otherwise treat as valid callbacks.
+    const isDeclaredCapability =
+      typeof capability === 'string' &&
+      (capabilities as Array<string>).includes(capability)
+
     // `Reflect.get` returns `any`, so this is a single narrowing cast (not
     // `as unknown as`) — a per-key cast from `AssistantConfig` directly
     // fails structurally because callback params are contravariant per key.
-    const callback =
-      typeof capability === 'string'
-        ? (Reflect.get(config, capability) as ((req: any) => unknown) | undefined)
-        : undefined
+    const callback = isDeclaredCapability
+      ? (Reflect.get(config, capability) as ((req: any) => unknown) | undefined)
+      : undefined
 
-    if (typeof capability !== 'string' || !callback) {
+    if (!isDeclaredCapability || !callback) {
       return new Response(
         `Unknown assistant capability: ${String(capability)}`,
         { status: 400 },

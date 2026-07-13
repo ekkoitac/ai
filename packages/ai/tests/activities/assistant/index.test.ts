@@ -69,6 +69,12 @@ describe('assistant.handler', () => {
     expect(res.status).toBe(400)
   })
 
+  it('400s on an inherited Object.prototype key used as capability', async () => {
+    const assistant = defineAssistant({ chat: (async function* () {}) as any })
+    const res = await assistant.handler(req(runAgentBody('toString')))
+    expect(res.status).toBe(400)
+  })
+
   it('routes chat and streams the callback iterable', async () => {
     const assistant = defineAssistant({
       chat: async function* (r: any) {
