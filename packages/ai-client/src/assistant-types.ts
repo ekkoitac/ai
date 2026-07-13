@@ -3,12 +3,19 @@ import type {
   AssistantDefinition,
   AudioGenerationResult,
   ImageGenerationResult,
+  InferChatSchema,
+  InferChatTools,
   SummarizationResult,
   TTSResult,
   TranscriptionResult,
   VideoJobResult,
 } from '@tanstack/ai'
-import type { AnyClientTool, ModelMessage } from '@tanstack/ai/client'
+import type {
+  AnyClientTool,
+  InferSchemaType,
+  ModelMessage,
+  SchemaInput,
+} from '@tanstack/ai/client'
 import type { ConnectConnectionAdapter } from './connection-adapters.js'
 import type {
   ChatClientOptions,
@@ -64,6 +71,13 @@ export interface AssistantClientCallbacks {
 /** Options for AssistantClient (framework-agnostic core). */
 export interface AssistantClientOptions<
   TDef extends AssistantDefinition<any>,
+  /**
+   * @deprecated Chat tool typing is now inferred from the assistant
+   * definition's chat callback (`TDef`), not from this generic. Retained only
+   * so the framework hooks (`ai-react`/`ai-solid`/`ai-vue`/`ai-svelte`), which
+   * still thread it through, keep compiling until they are updated. It no
+   * longer influences the chat surface's message/tool types.
+   */
   TChatTools extends ReadonlyArray<AnyClientTool> = [],
 > {
   assistant: TDef
@@ -104,8 +118,78 @@ export interface ResultByCapability {
 
 export type OneShotCapabilityName = keyof GenerateInputByCapability
 
-/** The chat capability surface — mirrors the frameworks' useChat return. */
-export interface AssistantChatSurface<
+/**
+ * Recursive partial — every property and every nested array element is
+ * optional. Types the in-flight `partial` value the chat surface exposes while
+ * a structured-output stream is still arriving (the JSON has shape but is
+ * incomplete). Mirrors the `DeepPartial` used by the framework `useChat`
+ * hooks.
+ */
+export type DeepPartial<T> =
+  T extends ReadonlyArray<infer TItem>
+    ? Array<DeepPartial<TItem>>
+    : T extends object
+      ? { [K in keyof T]?: DeepPartial<T[K]> }
+      : T
+
+/**
+ * Map a captured chat-callback tool (server / definition / client) to a
+ * `definition`-shaped object so it satisfies the `AnyClientTool` constraint on
+ * `UIMessage`/`ToolCallPart` **without** relaxing the core message types.
+ *
+ * The chat callback's `tools` are typically server (`.server()`) or bare
+ * definition tools, whose `__toolSide` is `'server'` / `'definition'` —
+ * `AnyClientTool` rejects `'server'`. We rebuild each tool as a
+ * `'definition'`-side object, preserving the exact fields the `Infer*` helpers
+ * and `ToolCallPartForTool` read (`name`, `inputSchema`, `outputSchema`,
+ * `needsApproval`). `description` is required by `AnyClientTool`'s underlying
+ * `Tool` shape, so it is kept as `string` (its value never feeds message
+ * typing).
+ */
+type ToClientToolShape<TTool> = TTool extends {
+  name: infer TName extends string
+}
+  ? {
+      __toolSide: 'definition'
+      name: TName
+      description: string
+      inputSchema?: TTool extends { inputSchema?: infer TIn } ? TIn : undefined
+      outputSchema?: TTool extends { outputSchema?: infer TOut }
+        ? TOut
+        : undefined
+      needsApproval?: TTool extends { needsApproval?: infer TNa } ? TNa : false
+    }
+  : never
+
+/** Map a captured tool tuple to a client-tool-shaped tuple (see above). */
+type ToClientTools<TTools> = TTools extends readonly [
+  infer THead,
+  ...infer TRest,
+]
+  ? [ToClientToolShape<THead>, ...ToClientTools<TRest>]
+  : []
+
+/** Recover the chat callback's return type from an assistant definition. */
+type ChatCallbackReturn<TDef> =
+  TDef extends AssistantDefinition<infer TCaps>
+    ? TCaps extends { chat: (...args: Array<any>) => infer TRet }
+      ? TRet
+      : never
+    : never
+
+/**
+ * Client-tool-shaped tuple recovered from the chat callback's captured tools.
+ * Drives the `messages` tool-call/result part typing on the chat surface.
+ */
+export type ChatToolsOf<TDef> = ToClientTools<
+  NonNullable<InferChatTools<ChatCallbackReturn<TDef>>>
+>
+
+/** Structured-output schema recovered from the chat callback (or `undefined`). */
+export type ChatSchemaOf<TDef> = InferChatSchema<ChatCallbackReturn<TDef>>
+
+/** The base chat capability surface — mirrors the frameworks' useChat return. */
+export interface AssistantChatSurfaceBase<
   TTools extends ReadonlyArray<AnyClientTool> = [],
 > {
   /** Current messages in the conversation. */
@@ -192,6 +276,32 @@ export interface AssistantChatSurface<
   sessionGenerating: boolean
 }
 
+/**
+ * The chat capability surface. Extends {@link AssistantChatSurfaceBase} and,
+ * when the chat callback declared an `outputSchema` (`TSchema extends
+ * SchemaInput`), adds the typed structured-output fields `partial` / `final`
+ * — mirroring the framework `useChat` hooks' conditional return. When no
+ * schema was declared, neither field is present.
+ */
+export type AssistantChatSurface<
+  TTools extends ReadonlyArray<AnyClientTool> = [],
+  TSchema = undefined,
+> = AssistantChatSurfaceBase<TTools> &
+  (TSchema extends SchemaInput
+    ? {
+        /**
+         * Live, progressively-parsed structured output while the stream is
+         * still arriving. Resets on every new run.
+         */
+        partial: DeepPartial<InferSchemaType<TSchema>>
+        /**
+         * Final, schema-validated structured output. `null` until the terminal
+         * structured-output event arrives. Resets on every new run.
+         */
+        final: InferSchemaType<TSchema> | null
+      }
+    : Record<never, never>)
+
 /** The one-shot capability surface — mirrors useGeneration return. */
 export interface AssistantGenerationSurface<TInput, TResult> {
   generate: (input: TInput) => Promise<void>
@@ -216,10 +326,34 @@ export type CapabilitySurface<
       >
     : never
 
-/** The full typed system returned by useAssistant. */
+/**
+ * The full typed system returned by useAssistant.
+ *
+ * The `chat` surface is fully inferred from the assistant definition's chat
+ * callback — its captured tools type `chat.messages`' tool-call/result parts,
+ * and its `outputSchema` (if any) adds typed `chat.partial` / `chat.final`.
+ */
 export type AssistantSystem<
   TDef extends AssistantDefinition<any>,
+  /**
+   * @deprecated No longer used for chat tool typing — chat tools are inferred
+   * from `TDef`'s chat callback. Retained so the framework hooks that still
+   * pass a second generic keep compiling; it has no effect on the surface.
+   */
   TChatTools extends ReadonlyArray<AnyClientTool> = [],
-> = {
-  [K in keyof TDef['~caps'] & string]: CapabilitySurface<K, TChatTools>
-}
+> =
+  // `TChatTools` is deprecated/unused for typing; the constraint always holds,
+  // so this reads the parameter (keeping it for hook back-compat) without
+  // affecting the resulting surface.
+  [TChatTools] extends [ReadonlyArray<AnyClientTool>]
+    ? {
+        [K in keyof TDef['~caps'] & string]: K extends 'chat'
+          ? AssistantChatSurface<ChatToolsOf<TDef>, ChatSchemaOf<TDef>>
+          : K extends OneShotCapabilityName
+            ? AssistantGenerationSurface<
+                GenerateInputByCapability[K],
+                ResultByCapability[K]
+              >
+            : never
+      }
+    : never
