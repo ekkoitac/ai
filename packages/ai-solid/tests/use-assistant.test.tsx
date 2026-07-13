@@ -142,6 +142,19 @@ describe('useAssistant', () => {
     })
   })
 
+  it('exposes structured partial/final on the chat surface with no structured part present', () => {
+    const assistant = defineAssistant({
+      chat: async function* () {} as any,
+    })
+
+    const { result } = renderHook(() =>
+      useAssistant(assistant, { connection: createAssistantConnection() }),
+    )
+
+    expect((result.chat as any).partial).toEqual({})
+    expect((result.chat as any).final).toBeNull()
+  })
+
   it('disposes both the chat and one-shot sub-clients on cleanup', () => {
     const assistant = defineAssistant({
       chat: async function* () {} as any,

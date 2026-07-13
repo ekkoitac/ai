@@ -6,7 +6,7 @@ import {
   onMount,
 } from 'solid-js'
 
-import { AssistantClient } from '@tanstack/ai-client'
+import { AssistantClient, computeStructuredParts } from '@tanstack/ai-client'
 import type {
   AnyClientTool,
   AssistantClientOptions,
@@ -235,6 +235,15 @@ export function useAssistant<
         },
         get sessionGenerating() {
           return chatState().sessionGenerating
+        },
+        // Runtime shape unconditionally exposes partial/final; the public
+        // AssistantSystem type hides them when the chat capability's
+        // outputSchema is absent, matching useChat's behavior.
+        get partial() {
+          return computeStructuredParts(chatState().messages).partial
+        },
+        get final() {
+          return computeStructuredParts(chatState().messages).final
         },
         sendMessage: async (content: string | MultimodalContent) => {
           await requireChatClient().sendMessage(content)
