@@ -11,6 +11,11 @@ describe('defineAssistant', () => {
     expect(assistant.capabilities.slice().sort()).toEqual(['chat', 'image'])
     expect(typeof assistant.handler).toBe('function')
   })
+
+  it('is exported from the package root', async () => {
+    const mod = await import('../../../src/index.js')
+    expect(typeof mod.defineAssistant).toBe('function')
+  })
 })
 
 function runAgentBody(capability: string, extra: Record<string, unknown> = {}) {

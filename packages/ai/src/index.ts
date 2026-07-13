@@ -8,6 +8,7 @@ export {
   getVideoJobStatus,
   generateSpeech,
   generateTranscription,
+  defineAssistant,
 } from './activities/index'
 
 // Create options functions - for pre-defining typed configurations
@@ -36,6 +37,16 @@ export type {
   TranscriptionAdapter,
   AnyVideoAdapter,
   VideoAdapter,
+  AssistantConfig,
+  AssistantDefinition,
+  AssistantCapabilityName,
+  AssistantChatRequest,
+  AssistantImageRequest,
+  AssistantAudioRequest,
+  AssistantSpeechRequest,
+  AssistantVideoRequest,
+  AssistantTranscriptionRequest,
+  AssistantSummarizeRequest,
 } from './activities/index'
 
 // Tool definition

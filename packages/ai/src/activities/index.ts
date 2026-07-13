@@ -171,6 +171,24 @@ export {
 } from './generateTranscription/adapter'
 
 // ===========================
+// Assistant Activity
+// ===========================
+
+export {
+  defineAssistant,
+  type AssistantConfig,
+  type AssistantDefinition,
+  type AssistantCapabilityName,
+  type AssistantChatRequest,
+  type AssistantImageRequest,
+  type AssistantAudioRequest,
+  type AssistantSpeechRequest,
+  type AssistantVideoRequest,
+  type AssistantTranscriptionRequest,
+  type AssistantSummarizeRequest,
+} from './assistant/index'
+
+// ===========================
 // Adapter Union Types
 // ===========================
 
