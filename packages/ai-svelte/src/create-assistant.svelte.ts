@@ -1,0 +1,275 @@
+import { AssistantClient } from '@tanstack/ai-client'
+import type {
+  AnyClientTool,
+  AssistantClientOptions,
+  AssistantSystem,
+  ChatClientState,
+  ConnectionStatus,
+  GenerationClientState,
+  OneShotCapabilityName,
+} from '@tanstack/ai-client'
+import type { AssistantDefinition, ModelMessage } from '@tanstack/ai'
+import type { MultimodalContent, UIMessage } from './types'
+
+/** Reactive state for a single one-shot (non-chat) capability. */
+interface OneShotState {
+  result: unknown
+  isLoading: boolean
+  error: Error | undefined
+  status: GenerationClientState
+}
+
+/**
+ * Creates a reactive assistant instance for Svelte 5.
+ *
+ * This function wraps the `AssistantClient` from `@tanstack/ai-client` and
+ * exposes reactive state using Svelte 5 runes, one surface per declared
+ * capability (`chat` plus any one-shot generation capabilities). The
+ * returned object exposes reactive getters that automatically update when
+ * state changes.
+ *
+ * @example
+ * ```svelte
+ * <script>
+ *   import { createAssistant, fetchServerSentEvents } from '@tanstack/ai-svelte'
+ *   import { myAssistant } from './assistant'
+ *
+ *   const assistant = createAssistant(myAssistant, {
+ *     connection: fetchServerSentEvents('/api/assistant'),
+ *   })
+ * </script>
+ *
+ * <div>
+ *   {#each assistant.chat.messages as message}
+ *     <div>{message.role}: {message.parts[0].content}</div>
+ *   {/each}
+ *
+ *   <button onclick={() => assistant.chat.sendMessage('Hello!')}>Send</button>
+ *   <button onclick={() => assistant.image.generate({ prompt: 'a fox' })}>
+ *     Generate image
+ *   </button>
+ * </div>
+ * ```
+ */
+export function createAssistant<
+  TDef extends AssistantDefinition<any>,
+  TChatTools extends ReadonlyArray<AnyClientTool> = [],
+>(
+  assistant: TDef,
+  options: Omit<AssistantClientOptions<TDef, TChatTools>, 'assistant'>,
+): AssistantSystem<TDef, TChatTools> & { dispose: () => void } {
+  // Reactive state for the chat capability, if declared.
+  let chatMessages = $state<Array<UIMessage<TChatTools>>>([])
+  let chatIsLoading = $state(false)
+  let chatError = $state<Error | undefined>(undefined)
+  let chatStatus = $state<ChatClientState>('ready')
+  let chatIsSubscribed = $state(false)
+  let chatConnectionStatus = $state<ConnectionStatus>('disconnected')
+  let chatSessionGenerating = $state(false)
+
+  // Reactive state per one-shot capability, keyed by capability name.
+  // Initialized eagerly for every declared one-shot capability, since
+  // `assistant.capabilities` is fixed at creation time (mirrors
+  // `AssistantClient`'s own constructor, which iterates the same array).
+  const oneShotStates = $state<Record<string, OneShotState>>({})
+  for (const capability of assistant.capabilities) {
+    if (capability === 'chat') continue
+    oneShotStates[capability] = {
+      result: null,
+      isLoading: false,
+      error: undefined,
+      status: 'idle',
+    }
+  }
+
+  // Returns (and lazily creates) the reactive state slot for a one-shot
+  // capability, avoiding a non-null assertion at each call site below.
+  const ensureOneShotState = (capability: string): OneShotState => {
+    let state = oneShotStates[capability]
+    if (!state) {
+      state = {
+        result: null,
+        isLoading: false,
+        error: undefined,
+        status: 'idle',
+      }
+      oneShotStates[capability] = state
+    }
+    return state
+  }
+
+  // Create the AssistantClient eagerly, once. Reactive callbacks are passed
+  // into the constructor (the only place ChatClient/GenerationClient accept
+  // them) rather than via `updateOptions`, mirroring `createChat`.
+  const client = new AssistantClient<TDef, TChatTools>({
+    assistant,
+    connection: options.connection,
+    ...(options.id !== undefined && { id: options.id }),
+    ...(options.threadId !== undefined && { threadId: options.threadId }),
+    ...(options.chat !== undefined && { chat: options.chat }),
+    callbacks: {
+      chat: {
+        onMessagesChange: (newMessages) => {
+          chatMessages = newMessages
+        },
+        onLoadingChange: (newIsLoading) => {
+          chatIsLoading = newIsLoading
+        },
+        onErrorChange: (newError) => {
+          chatError = newError
+        },
+        onStatusChange: (newStatus) => {
+          chatStatus = newStatus
+        },
+        onSubscriptionChange: (nextIsSubscribed) => {
+          chatIsSubscribed = nextIsSubscribed
+        },
+        onConnectionStatusChange: (nextStatus) => {
+          chatConnectionStatus = nextStatus
+        },
+        onSessionGeneratingChange: (isGenerating) => {
+          chatSessionGenerating = isGenerating
+        },
+      },
+      oneShot: (capability) => ({
+        onResultChange: (result) => {
+          ensureOneShotState(capability).result = result
+        },
+        onLoadingChange: (isLoading) => {
+          ensureOneShotState(capability).isLoading = isLoading
+        },
+        onErrorChange: (error) => {
+          ensureOneShotState(capability).error = error
+        },
+        onStatusChange: (status) => {
+          ensureOneShotState(capability).status = status
+        },
+      }),
+    },
+  })
+
+  chatMessages = client.chat?.getMessages() ?? []
+
+  // Note: No auto-cleanup in Svelte — call `dispose()` in your component's
+  // cleanup if needed. Unlike React/Vue/Solid, Svelte 5 runes like $effect
+  // can only be used during component initialization.
+  const dispose = () => {
+    client.dispose()
+  }
+
+  // Chat capability methods.
+  const sendMessage = async (content: string | MultimodalContent) => {
+    await client.chat?.sendMessage(content)
+  }
+
+  const append = async (message: ModelMessage | UIMessage<TChatTools>) => {
+    await client.chat?.append(message)
+  }
+
+  const reload = async () => {
+    await client.chat?.reload()
+  }
+
+  const chatStop = () => {
+    client.chat?.stop()
+  }
+
+  const clear = () => {
+    client.chat?.clear()
+  }
+
+  const setMessages = (newMessages: Array<UIMessage<TChatTools>>) => {
+    client.chat?.setMessagesManually(newMessages)
+  }
+
+  const addToolResult = async (result: {
+    toolCallId: string
+    tool: string
+    output: any
+    state?: 'output-available' | 'output-error'
+    errorText?: string
+  }) => {
+    await client.chat?.addToolResult(result)
+  }
+
+  const addToolApprovalResponse = async (response: {
+    id: string
+    approved: boolean
+  }) => {
+    await client.chat?.addToolApprovalResponse(response)
+  }
+
+  // Build the returned system: one entry per declared capability, plus a
+  // top-level `dispose`. Uses getters so Svelte tracks the underlying
+  // `$state` without a `$` prefix.
+  const system: Record<string, unknown> = {}
+
+  for (const capability of assistant.capabilities) {
+    if (capability === 'chat') {
+      system.chat = {
+        get messages() {
+          return chatMessages
+        },
+        get isLoading() {
+          return chatIsLoading
+        },
+        get error() {
+          return chatError
+        },
+        get status() {
+          return chatStatus
+        },
+        get isSubscribed() {
+          return chatIsSubscribed
+        },
+        get connectionStatus() {
+          return chatConnectionStatus
+        },
+        get sessionGenerating() {
+          return chatSessionGenerating
+        },
+        sendMessage,
+        append,
+        reload,
+        stop: chatStop,
+        clear,
+        setMessages,
+        addToolResult,
+        addToolApprovalResponse,
+      }
+      continue
+    }
+
+    const capabilityName = capability as OneShotCapabilityName
+    system[capabilityName] = {
+      get result() {
+        return oneShotStates[capabilityName]?.result ?? null
+      },
+      get isLoading() {
+        return oneShotStates[capabilityName]?.isLoading ?? false
+      },
+      get error() {
+        return oneShotStates[capabilityName]?.error
+      },
+      get status() {
+        return oneShotStates[capabilityName]?.status ?? 'idle'
+      },
+      generate: async (input: any) => {
+        await client.get(capabilityName)?.generate(input)
+      },
+      stop: () => {
+        client.get(capabilityName)?.stop()
+      },
+      reset: () => {
+        client.get(capabilityName)?.reset()
+      },
+    }
+  }
+
+  system.dispose = dispose
+
+  // eslint-disable-next-line no-restricted-syntax -- built dynamically from a runtime `assistant.capabilities` array; the static AssistantSystem<TDef, TChatTools> shape can't be verified structurally here, plus the added `dispose` field.
+  return system as unknown as AssistantSystem<TDef, TChatTools> & {
+    dispose: () => void
+  }
+}

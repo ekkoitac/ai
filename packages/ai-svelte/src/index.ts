@@ -7,6 +7,8 @@ export type {
   ChatRequestBody,
 } from './types'
 
+export { createAssistant } from './create-assistant.svelte'
+
 // Generation hooks
 export { createGeneration } from './create-generation.svelte'
 export type {
