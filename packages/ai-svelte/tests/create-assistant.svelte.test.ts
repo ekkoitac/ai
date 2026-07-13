@@ -80,4 +80,18 @@ describe('createAssistant', () => {
 
     system.dispose()
   })
+
+  it('exposes structured partial/final on the chat surface with no structured part', () => {
+    const assistant = defineAssistant({
+      chat: async function* () {} as any,
+      image: async () => ({}) as any,
+    })
+
+    const system = createAssistant(assistant, { connection: fakeConnection() })
+
+    expect((system.chat as any).partial).toEqual({})
+    expect((system.chat as any).final).toBeNull()
+
+    system.dispose()
+  })
 })

@@ -1,4 +1,4 @@
-import { AssistantClient } from '@tanstack/ai-client'
+import { AssistantClient, computeStructuredParts } from '@tanstack/ai-client'
 import type {
   AnyClientTool,
   AssistantClientOptions,
@@ -66,6 +66,10 @@ export function createAssistant<
   let chatIsSubscribed = $state(false)
   let chatConnectionStatus = $state<ConnectionStatus>('disconnected')
   let chatSessionGenerating = $state(false)
+
+  // Derived structured-output `partial`/`final`, recomputed whenever
+  // `chatMessages` changes (mirrors `useChat`/`useAssistant`'s `useMemo`).
+  const structuredParts = $derived(computeStructuredParts(chatMessages))
 
   // Reactive state per one-shot capability, keyed by capability name.
   // Initialized eagerly for every declared one-shot capability, since
@@ -227,6 +231,15 @@ export function createAssistant<
         },
         get sessionGenerating() {
           return chatSessionGenerating
+        },
+        // Runtime shape unconditionally exposes partial/final; the public
+        // AssistantSystem type hides them when the chat capability's
+        // outputSchema is absent, matching useChat's behavior.
+        get partial() {
+          return structuredParts.partial
+        },
+        get final() {
+          return structuredParts.final
         },
         sendMessage,
         append,
