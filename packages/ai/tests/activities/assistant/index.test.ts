@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { defineAssistant } from './index.js'
+import { defineAssistant } from '../../../src/activities/assistant/index.js'
 
 describe('defineAssistant', () => {
   it('is inert: does not invoke any capability callback at define time', () => {
