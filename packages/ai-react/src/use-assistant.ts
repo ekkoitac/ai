@@ -1,4 +1,4 @@
-import { AssistantClient } from '@tanstack/ai-client'
+import { AssistantClient, computeStructuredParts } from '@tanstack/ai-client'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { AssistantDefinition } from '@tanstack/ai'
 import type { AnyClientTool } from '@tanstack/ai/client'
@@ -168,6 +168,11 @@ export function useAssistant<
     }
   }, [client])
 
+  const { partial, final } = useMemo(
+    () => computeStructuredParts(chatState.messages),
+    [chatState.messages],
+  )
+
   const system = useMemo(() => {
     const out: Record<string, unknown> = {}
 
@@ -192,6 +197,11 @@ export function useAssistant<
           isSubscribed: chatState.isSubscribed,
           connectionStatus: chatState.connectionStatus,
           sessionGenerating: chatState.sessionGenerating,
+          // Runtime shape unconditionally exposes partial/final; the public
+          // AssistantSystem type hides them when the chat capability's
+          // outputSchema is absent, matching useChat's behavior.
+          partial,
+          final,
         }
         continue
       }
@@ -211,7 +221,7 @@ export function useAssistant<
     }
 
     return out as AssistantSystem<TDef, TChatTools>
-  }, [client, chatState, oneShotState])
+  }, [client, chatState, oneShotState, partial, final])
 
   return system
 }

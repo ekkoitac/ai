@@ -81,4 +81,17 @@ describe('useAssistant', () => {
 
     expect(result.current.chat.messages.length).toBeGreaterThan(0)
   })
+
+  it('exposes chat.partial/final with cleared defaults on first render', () => {
+    const assistant = defineAssistant({
+      chat: async function* () {} as any,
+      image: async () => ({}) as any,
+    })
+    const { result } = renderHook(() =>
+      useAssistant(assistant, { connection: fakeConnection() }),
+    )
+
+    expect((result.current.chat as any).partial).toEqual({})
+    expect((result.current.chat as any).final).toBeNull()
+  })
 })
