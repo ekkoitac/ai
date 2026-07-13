@@ -89,17 +89,7 @@ function AssistantRoute() {
 
   return (
     <div className="flex h-screen flex-col">
-      <div className="flex-1 overflow-hidden">
-        <ChatUI
-          messages={system.chat.messages}
-          isLoading={system.chat.isLoading}
-          onSendMessage={(text) => {
-            system.chat.sendMessage(text)
-          }}
-          onStop={system.chat.stop}
-        />
-      </div>
-      <div className="flex items-center gap-3 border-t border-gray-700 p-3">
+      <div className="flex items-center gap-3 border-b border-gray-700 p-3">
         <button
           type="button"
           data-testid="assistant-generate-image"
@@ -116,6 +106,16 @@ function AssistantRoute() {
         >
           {system.image.result?.images[0]?.url ?? ''}
         </span>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <ChatUI
+          messages={system.chat.messages}
+          isLoading={system.chat.isLoading}
+          onSendMessage={(text) => {
+            system.chat.sendMessage(text)
+          }}
+          onStop={system.chat.stop}
+        />
       </div>
     </div>
   )
