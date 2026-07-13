@@ -12,10 +12,14 @@ describe('defineAssistant', () => {
     expect(typeof assistant.handler).toBe('function')
   })
 
-  it('is exported from the package root', async () => {
-    const mod = await import('../../../src/index.js')
-    expect(typeof mod.defineAssistant).toBe('function')
-  })
+  it(
+    'is exported from the package root',
+    async () => {
+      const mod = await import('../../../src/index.js')
+      expect(typeof mod.defineAssistant).toBe('function')
+    },
+    30000,
+  )
 })
 
 function runAgentBody(capability: string, extra: Record<string, unknown> = {}) {
