@@ -45,7 +45,7 @@ const DEFAULT_ONE_SHOT_STATE: OneShotState = {
  * <script setup>
  * import { useAssistant } from '@tanstack/ai-vue'
  * import { fetchServerSentEvents } from '@tanstack/ai-client'
- * import { assistant } from './my-assistant'
+ * // assistant: your defineAssistant(...) value
  *
  * const system = useAssistant(assistant, {
  *   connection: fetchServerSentEvents('/api/assistant'),

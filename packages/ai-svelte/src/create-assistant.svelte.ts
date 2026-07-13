@@ -32,7 +32,7 @@ interface OneShotState {
  * ```svelte
  * <script>
  *   import { createAssistant, fetchServerSentEvents } from '@tanstack/ai-svelte'
- *   import { myAssistant } from './assistant'
+ *   // myAssistant: your defineAssistant(...) value
  *
  *   const assistant = createAssistant(myAssistant, {
  *     connection: fetchServerSentEvents('/api/assistant'),
