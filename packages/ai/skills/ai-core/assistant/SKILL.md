@@ -56,7 +56,7 @@ import {
 } from '@tanstack/ai-openai/adapters'
 import { getWeather } from './tools'
 
-export const assistant = defineAssistant({
+export const blogAssistant = defineAssistant({
   chat: (req) =>
     chat({
       adapter: openaiText('gpt-5.5'),
@@ -91,7 +91,7 @@ import { assistant } from '../lib/assistant'
 export const Route = createFileRoute('/api/assistant')({
   server: {
     handlers: {
-      POST: (request) => assistant.handler(request),
+      POST: (request) => blogAssistant.handler(request),
     },
   },
 })
@@ -111,30 +111,32 @@ import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
 import { assistant } from '../lib/assistant'
 
 function AssistantPanel() {
-  const system = useAssistant(assistant, {
+  const assistant = useAssistant(blogAssistant, {
     connection: fetchServerSentEvents('/api/assistant'),
   })
 
   return (
     <div>
       <div>
-        {system.chat.messages.map((message) => (
+        {assistant.chat.messages.map((message) => (
           <div key={message.id}>{message.role}</div>
         ))}
       </div>
       <button
-        onClick={() => system.chat.sendMessage('What can you help with?')}
+        onClick={() => assistant.chat.sendMessage('What can you help with?')}
       >
         Ask
       </button>
 
       <button
-        onClick={() => system.image.generate({ prompt: 'a fox in a garden' })}
-        disabled={system.image.isLoading}
+        onClick={() =>
+          assistant.image.generate({ prompt: 'a fox in a garden' })
+        }
+        disabled={assistant.image.isLoading}
       >
-        {system.image.isLoading ? 'Generating...' : 'Generate image'}
+        {assistant.image.isLoading ? 'Generating...' : 'Generate image'}
       </button>
-      {system.image.result?.images.map((img, i) => (
+      {assistant.image.result?.images.map((img, i) => (
         <img key={i} src={img.url} alt="" />
       ))}
     </div>
@@ -142,13 +144,13 @@ function AssistantPanel() {
 }
 ```
 
-`system` is typed from the `assistant` value passed in — **no generics** at
+`assistant` is typed from the `assistant` value passed in — **no generics** at
 the call site. Only capabilities declared in `defineAssistant` appear on
-`system`; referencing an undeclared key is a compile error. `system.chat`
+`assistant`; referencing an undeclared key is a compile error. `assistant.chat`
 is the full `useChat` return (`messages`, `sendMessage`, `isLoading`,
-`error`, `status`, `stop`, `clear`, `addToolResult`, …); `system.image` /
-`system.audio` / `system.speech` / `system.video` /
-`system.transcription` / `system.summarize` are each the full
+`error`, `status`, `stop`, `clear`, `addToolResult`, …); `assistant.image` /
+`assistant.audio` / `assistant.speech` / `assistant.video` /
+`assistant.transcription` / `assistant.summarize` are each the full
 `useGeneration`-style return (`generate`, `result`, `isLoading`, `error`,
 `status`, `stop`, `reset`).
 
@@ -160,7 +162,7 @@ Vue/Solid/Svelte have identical patterns with different hook imports
 ### 1. Typed chat tools via `chat: { tools }`
 
 Server-side tools passed to the `chat` callback (via `chat({ tools: [...] })`)
-drive the runtime behavior. To get typed tool-call parts on `system.chat`
+drive the runtime behavior. To get typed tool-call parts on `assistant.chat`
 (narrowed by tool name), pass the client-side tool definitions through the
 `chat` option on `useAssistant`, exactly like `useChat({ tools })`:
 
@@ -169,14 +171,14 @@ import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
 import { assistant } from '../lib/assistant'
 import { getWeatherClientTool } from '../lib/tools'
 
-const system = useAssistant(assistant, {
+const assistant = useAssistant(blogAssistant, {
   connection: fetchServerSentEvents('/api/assistant'),
   chat: {
     tools: [getWeatherClientTool],
   },
 })
 
-// system.chat.messages parts now narrow tool-call parts by tool name
+// assistant.chat.messages parts now narrow tool-call parts by tool name
 ```
 
 `chat.forwardedProps` is also available on the same option, merged into
@@ -189,15 +191,15 @@ is a pure composition layer. To use one capability's result as input to
 another, read the result value and pass it explicitly:
 
 ```typescript
-await system.image.generate({ prompt: 'a lighthouse at dusk' })
+await assistant.image.generate({ prompt: 'a lighthouse at dusk' })
 
-// after system.image.result is populated:
-if (system.image.result) {
-  system.chat.sendMessage({
+// after assistant.image.result is populated:
+if (assistant.image.result) {
+  assistant.chat.sendMessage({
     content: [
       {
         type: 'image',
-        source: { type: 'url', value: system.image.result.images[0].url },
+        source: { type: 'url', value: assistant.image.result.images[0].url },
       },
       { type: 'text', content: 'Write a short caption for this image.' },
     ],
@@ -207,8 +209,8 @@ if (system.image.result) {
 
 ### 3. Only declared capabilities are constructed
 
-`defineAssistant({ chat, image })` produces a client `system` with exactly
-`system.chat` and `system.image` — no `system.audio`, `system.video`, etc.
+`defineAssistant({ chat, image })` produces a client `assistant` with exactly
+`assistant.chat` and `assistant.image` — no `assistant.audio`, `assistant.video`, etc.
 Add or remove capability keys on the server definition to change what the
 client can call; there's nothing else to keep in sync.
 
@@ -229,12 +231,12 @@ individually — see ai-core/chat-experience and ai-core/media-generation.
 ```typescript
 // WRONG — adapter constructed eagerly at module load, defeats "inert" guarantee
 const textAdapter = openaiText('gpt-5.5')
-const assistant = defineAssistant({
+const blogAssistant = defineAssistant({
   chat: (req) => chat({ adapter: textAdapter, messages: req.messages }),
 })
 
 // CORRECT — construct inside the callback, per request
-const assistant = defineAssistant({
+const blogAssistant = defineAssistant({
   chat: (req) =>
     chat({ adapter: openaiText('gpt-5.5'), messages: req.messages }),
 })
@@ -260,7 +262,7 @@ export const POST = async (request: Request) => {
 }
 
 // CORRECT — defineAssistant's handler already parses, routes, and serializes
-export const POST = (request: Request) => assistant.handler(request)
+export const POST = (request: Request) => blogAssistant.handler(request)
 ```
 
 ### c. HIGH: Passing `model` or top-level generation options to `useAssistant`
@@ -274,25 +276,27 @@ only client-side option `useAssistant` accepts besides `connection` is
 
 ```typescript
 // WRONG — no such options on useAssistant
-useAssistant(assistant, { connection, model: 'gpt-5.5', prompt: '...' })
+useAssistant(blogAssistant, { connection, model: 'gpt-5.5', prompt: '...' })
 
 // CORRECT — model/prompt options live in the server callback; useAssistant
 // only takes connection, threadId/id, and chat.{tools,forwardedProps}
-useAssistant(assistant, { connection: fetchServerSentEvents('/api/assistant') })
+useAssistant(blogAssistant, {
+  connection: fetchServerSentEvents('/api/assistant'),
+})
 ```
 
 ### d. MEDIUM: Expecting `defineAssistant` to auto-chain results
 
 ```typescript
-// WRONG — assuming the assistant remembers system.image.result automatically
-system.chat.sendMessage('use the image I just generated')
+// WRONG — assuming the assistant remembers assistant.image.result automatically
+assistant.chat.sendMessage('use the image I just generated')
 
 // CORRECT — thread the result value through explicitly (see Core Pattern 2)
-system.chat.sendMessage({
+assistant.chat.sendMessage({
   content: [
     {
       type: 'image',
-      source: { type: 'url', value: system.image.result.images[0].url },
+      source: { type: 'url', value: assistant.image.result.images[0].url },
     },
     { type: 'text', content: 'Use this image.' },
   ],
@@ -305,19 +309,19 @@ auto-resolution of prior outputs).
 ### e. MEDIUM: Declaring a capability on the server but never checking it client-side
 
 Every capability declared in `defineAssistant` is unconditionally present on
-`system` — there's no need to guard with `system.image?.generate`. If a
+`assistant` — there's no need to guard with `assistant.image?.generate`. If a
 capability is optional per-deployment, omit the key from the
 `defineAssistant` config entirely rather than declaring it and ignoring it
 on the client.
 
 ## Cross-References
 
-- See also: **ai-core/chat-experience/SKILL.md** -- `system.chat` is the
+- See also: **ai-core/chat-experience/SKILL.md** -- `assistant.chat` is the
   same `useChat` surface; streaming, tool rendering, and multimodal
   messages all apply unchanged.
-- See also: **ai-core/media-generation/SKILL.md** -- `system.image` /
-  `system.audio` / `system.speech` / `system.video` /
-  `system.transcription` / `system.summarize` are each the same
+- See also: **ai-core/media-generation/SKILL.md** -- `assistant.image` /
+  `assistant.audio` / `assistant.speech` / `assistant.video` /
+  `assistant.transcription` / `assistant.summarize` are each the same
   `useGeneration`-style surface documented there.
 - See also: **ai-core/tool-calling/SKILL.md** -- Tools passed to the `chat`
   capability callback follow the same server/client tool patterns as a

@@ -30,7 +30,8 @@ capability must return the stream `chat()` produces; one-shot capabilities
 either a `Promise` of their result or — with `stream: true` — an
 `AsyncIterable`. Every key is optional; the client only sees what you declare.
 `defineAssistant()` itself is inert: none of these callbacks run, and no
-adapter is constructed, until a request actually reaches `assistant.handler`.
+adapter is constructed, until a request actually reaches
+`blogAssistant.handler`.
 
 ```ts
 // api/assistant.ts
@@ -42,7 +43,7 @@ import {
 } from '@tanstack/ai'
 import { openaiImage, openaiSpeech, openaiText } from '@tanstack/ai-openai'
 
-export const assistant = defineAssistant({
+export const blogAssistant = defineAssistant({
   chat: (req) =>
     chat({
       adapter: openaiText('gpt-5.5'),
@@ -70,7 +71,7 @@ export const assistant = defineAssistant({
     }),
 })
 
-export const POST = (request: Request) => assistant.handler(request)
+export const POST = (request: Request) => blogAssistant.handler(request)
 ```
 
 The handler discriminates each incoming request by capability — routed there
@@ -81,10 +82,10 @@ by the client below — parses it into the matching request shape
 ## Driving It From the Client
 
 `useAssistant()` (also available for Solid, Vue, and Svelte) takes the same
-assistant definition and a connection adapter, and returns one `system`
-object with a property per declared capability: `system.chat` looks like
-`useChat`'s return value, and each one-shot capability (`system.image`,
-`system.speech`) looks like `useGenerateImage` / `useGenerateSpeech`'s.
+assistant definition and a connection adapter, and returns one `assistant`
+object with a property per declared capability: `assistant.chat` looks like
+`useChat`'s return value, and each one-shot capability (`assistant.image`,
+`assistant.speech`) looks like `useGenerateImage` / `useGenerateSpeech`'s.
 
 ```tsx
 // components/Assistant.tsx
@@ -99,7 +100,7 @@ import { openaiImage, openaiSpeech, openaiText } from '@tanstack/ai-openai'
 
 // The same object your server route exports — share it from one module in a
 // real app; repeated here so this snippet type-checks on its own.
-const assistant = defineAssistant({
+const blogAssistant = defineAssistant({
   chat: (req) =>
     chat({
       adapter: openaiText('gpt-5.5'),
@@ -125,14 +126,14 @@ const assistant = defineAssistant({
 })
 
 function Assistant() {
-  const system = useAssistant(assistant, {
+  const assistant = useAssistant(blogAssistant, {
     connection: fetchServerSentEvents('/api/assistant'),
   })
 
   return (
     <div>
-      <button onClick={() => system.chat.sendMessage('Hello!')}>Send</button>
-      {system.chat.messages.map((message) => (
+      <button onClick={() => assistant.chat.sendMessage('Hello!')}>Send</button>
+      {assistant.chat.messages.map((message) => (
         <p key={message.id}>
           {message.parts.find((part) => part.type === 'text')?.content}
         </p>
@@ -140,28 +141,28 @@ function Assistant() {
 
       <button
         onClick={() =>
-          system.image.generate({ prompt: 'a red fox in a snowy forest' })
+          assistant.image.generate({ prompt: 'a red fox in a snowy forest' })
         }
       >
         Generate image
       </button>
-      {system.image.result?.images[0]?.url && (
-        <img src={system.image.result.images[0].url} alt="" />
+      {assistant.image.result?.images[0]?.url && (
+        <img src={assistant.image.result.images[0].url} alt="" />
       )}
     </div>
   )
 }
 ```
 
-`system.chat.sendMessage(...)` and `system.chat.messages` behave exactly like
-[`useChat`](../chat/streaming) — streaming, tool calls, and message parts all
-work the same way. `system.image.generate({ prompt })` and
-`system.image.result` behave like
+`assistant.chat.sendMessage(...)` and `assistant.chat.messages` behave exactly
+like [`useChat`](../chat/streaming) — streaming, tool calls, and message parts
+all work the same way. `assistant.image.generate({ prompt })` and
+`assistant.image.result` behave like
 [`useGenerateImage`](../media/image-generation#hook-api).
 
 ## Chaining Capabilities
 
-Because every capability shares the same `system` object, you can feed the
+Because every capability shares the same `assistant` object, you can feed the
 result of one straight into another — the reason to reach for a single
 assistant instead of separate `useChat` / `useGenerateImage` hooks.
 
@@ -177,7 +178,7 @@ import { openaiImage, openaiText } from '@tanstack/ai-openai'
 
 // The same object your server route exports — share it from one module in a
 // real app; repeated here so this snippet type-checks on its own.
-const assistant = defineAssistant({
+const blogAssistant = defineAssistant({
   chat: (req) =>
     chat({
       adapter: openaiText('gpt-5.5'),
@@ -197,16 +198,16 @@ const assistant = defineAssistant({
 })
 
 function ImageThenChat() {
-  const system = useAssistant(assistant, {
+  const assistant = useAssistant(blogAssistant, {
     connection: fetchServerSentEvents('/api/assistant'),
   })
 
   async function writeAboutImage(prompt: string) {
-    await system.image.generate({ prompt })
-    const url = system.image.result?.images[0]?.url
+    await assistant.image.generate({ prompt })
+    const url = assistant.image.result?.images[0]?.url
     if (!url) return
 
-    await system.chat.sendMessage({
+    await assistant.chat.sendMessage({
       content: [
         { type: 'image', source: { type: 'url', value: url } },
         {
@@ -228,8 +229,8 @@ function ImageThenChat() {
 ### Chat → Speech
 
 The reverse works too — read the model's latest reply out of
-`system.chat.messages` and hand its text to another capability, here narrating
-it with `system.speech.generate`:
+`assistant.chat.messages` and hand its text to another capability, here
+narrating it with `assistant.speech.generate`:
 
 ```tsx
 import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
@@ -238,7 +239,7 @@ import { openaiSpeech, openaiText } from '@tanstack/ai-openai'
 
 // The same object your server route exports — share it from one module in a
 // real app; repeated here so this snippet type-checks on its own.
-const assistant = defineAssistant({
+const blogAssistant = defineAssistant({
   chat: (req) =>
     chat({
       adapter: openaiText('gpt-5.5'),
@@ -255,16 +256,16 @@ const assistant = defineAssistant({
 })
 
 function NarrateLastReply() {
-  const system = useAssistant(assistant, {
+  const assistant = useAssistant(blogAssistant, {
     connection: fetchServerSentEvents('/api/assistant'),
   })
 
   async function narrate() {
-    const last = system.chat.messages.at(-1)
+    const last = assistant.chat.messages.at(-1)
     const text = last?.parts.find((part) => part.type === 'text')?.content
     if (!text) return
 
-    await system.speech.generate({ text })
+    await assistant.speech.generate({ text })
   }
 
   return <button onClick={narrate}>Read reply aloud</button>
@@ -272,19 +273,19 @@ function NarrateLastReply() {
 ```
 
 See [Text-to-Speech](../media/text-to-speech#playing-audio-in-the-browser)
-for turning `system.speech.result.audio` into playable audio.
+for turning `assistant.speech.result.audio` into playable audio.
 
 ## Chat Tools
 
 Client tools for the `chat` capability are declared the same way as
 [`useChat`'s `tools`](../tools/client-tools) — pass them through the `chat`
-option, and `system.chat.messages` picks up their types:
+option, and `assistant.chat.messages` picks up their types:
 
 ```ts
 import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
 import { toolDefinition } from '@tanstack/ai'
 import { z } from 'zod'
-import { assistant } from './assistant'
+import { blogAssistant } from './assistant'
 
 const showToastDef = toolDefinition({
   name: 'show_toast',
@@ -298,13 +299,13 @@ const showToast = showToastDef.client((input) => {
 })
 
 function useAssistantWithTools() {
-  return useAssistant(assistant, {
+  return useAssistant(blogAssistant, {
     connection: fetchServerSentEvents('/api/assistant'),
     chat: { tools: [showToast] },
   })
 }
 ```
 
-`system.chat.messages[number].parts` then narrows `tool-call` parts to
+`assistant.chat.messages[number].parts` then narrows `tool-call` parts to
 `show_toast`'s inferred input/output, exactly as it would for `useChat({
 tools })`.
