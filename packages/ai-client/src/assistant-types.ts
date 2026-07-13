@@ -313,19 +313,6 @@ export interface AssistantGenerationSurface<TInput, TResult> {
   reset: () => void
 }
 
-/** Map a capability name to its client surface. */
-export type CapabilitySurface<
-  TCapability extends string,
-  TChatTools extends ReadonlyArray<AnyClientTool>,
-> = TCapability extends 'chat'
-  ? AssistantChatSurface<TChatTools>
-  : TCapability extends OneShotCapabilityName
-    ? AssistantGenerationSurface<
-        GenerateInputByCapability[TCapability],
-        ResultByCapability[TCapability]
-      >
-    : never
-
 /**
  * The full typed system returned by useAssistant.
  *

@@ -18,7 +18,6 @@ export type {
   AssistantSystem,
   AssistantChatSurface,
   AssistantGenerationSurface,
-  CapabilitySurface,
   OneShotCapabilityName,
 } from './assistant-types'
 export type {
