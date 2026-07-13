@@ -83,6 +83,15 @@ describe('useAssistant', () => {
     expect(system.speech).toBeUndefined()
   })
 
+  it('exposes structured partial/final with no structured part', () => {
+    const { system } = renderUseAssistant(assistant, {
+      connection: createAssistantConnection(),
+    })
+
+    expect(system.chat.partial.value).toEqual({})
+    expect(system.chat.final.value).toBeNull()
+  })
+
   it('sendMessage populates chat messages', async () => {
     const { system } = renderUseAssistant(assistant, {
       connection: createAssistantConnection(),

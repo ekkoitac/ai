@@ -1,4 +1,4 @@
-import { AssistantClient } from '@tanstack/ai-client'
+import { AssistantClient, computeStructuredParts } from '@tanstack/ai-client'
 import { computed, onMounted, onScopeDispose, readonly, shallowRef } from 'vue'
 import type { AssistantDefinition, ModelMessage } from '@tanstack/ai'
 import type {
@@ -139,6 +139,10 @@ export function useAssistant<
     client.dispose()
   })
 
+  const structuredParts = computed(() =>
+    computeStructuredParts(chatMessages.value),
+  )
+
   const system: Record<string, unknown> = {}
 
   for (const capability of client.capabilities) {
@@ -191,6 +195,11 @@ export function useAssistant<
         isSubscribed: readonly(chatIsSubscribed),
         connectionStatus: readonly(chatConnectionStatus),
         sessionGenerating: readonly(chatSessionGenerating),
+        // Runtime shape unconditionally exposes partial/final; the public
+        // AssistantSystem type hides them when the chat capability's
+        // outputSchema is absent, matching useChat's behavior.
+        partial: readonly(computed(() => structuredParts.value.partial)),
+        final: readonly(computed(() => structuredParts.value.final)),
       }
       continue
     }
