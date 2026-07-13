@@ -277,28 +277,120 @@ for turning `assistant.speech.result.audio` into playable audio.
 
 ## Chat Tools
 
-Client tools for the `chat` capability are declared the same way as
-[`useChat`'s `tools`](../tools/client-tools) — pass them through the `chat`
-option, and `assistant.chat.messages` picks up their types:
+Tools passed to `chat({ tools: [...] })` inside the server callback
+automatically type `assistant.chat.messages` — there's nothing to
+re-declare on the client to get typed tool-call parts:
+
+```tsx
+// components/WeatherChat.tsx
+import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
+import { chat, defineAssistant, toolDefinition } from '@tanstack/ai'
+import { openaiText } from '@tanstack/ai-openai'
+import { z } from 'zod'
+
+const getWeatherDef = toolDefinition({
+  name: 'get_weather',
+  description: 'Get the current weather for a city',
+  inputSchema: z.object({ city: z.string() }),
+  outputSchema: z.object({ tempF: z.number(), conditions: z.string() }),
+})
+
+const getWeather = getWeatherDef.server(async ({ city }) => {
+  return { tempF: 72, conditions: `Sunny in ${city}` }
+})
+
+// The same object your server route exports — share it from one module in a
+// real app; repeated here so this snippet type-checks on its own.
+const blogAssistant = defineAssistant({
+  chat: (req) =>
+    chat({
+      adapter: openaiText('gpt-5.5'),
+      messages: req.messages,
+      threadId: req.threadId,
+      runId: req.runId,
+      tools: [getWeather],
+    }),
+})
+
+function WeatherChat() {
+  const assistant = useAssistant(blogAssistant, {
+    connection: fetchServerSentEvents('/api/assistant'),
+  })
+
+  const weatherCall = assistant.chat.messages
+    .at(-1)
+    ?.parts.find(
+      (part) => part.type === 'tool-call' && part.name === 'get_weather',
+    )
+
+  return (
+    <div>
+      <button
+        onClick={() =>
+          assistant.chat.sendMessage('What is the weather in Denver?')
+        }
+      >
+        Ask
+      </button>
+      {weatherCall?.type === 'tool-call' && weatherCall.output && (
+        <p>{weatherCall.output.conditions}</p>
+      )}
+    </div>
+  )
+}
+```
+
+No `chat: { tools }` option was passed to `useAssistant` above —
+`weatherCall.output` is still narrowed to `{ tempF: number; conditions:
+string }`, inferred entirely from the `tools: [getWeather]` the server
+callback passed to `chat()`.
+
+### Client-executed tools still need `chat: { tools }`
+
+`chat: { tools }` on `useAssistant` is now **optional**, and exists for one
+remaining reason: a client-executed tool's `.client()` implementation runs in
+the browser, so its code can't cross the wire to the server. The server
+callback only ever sees the tool's *definition* (for typing and to tell the
+model it exists); the client has to register the runtime implementation
+itself. Types still come from the server callback either way.
 
 ```ts
-import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
+// lib/tools.ts — shared module: the definition, plus the client implementation
 import { toolDefinition } from '@tanstack/ai'
 import { z } from 'zod'
-import { blogAssistant } from './assistant'
 
-const showToastDef = toolDefinition({
+export const showToastDef = toolDefinition({
   name: 'show_toast',
   description: 'Show a browser notification',
   inputSchema: z.object({ message: z.string() }),
 })
 
-const showToast = showToastDef.client((input) => {
+export const showToast = showToastDef.client((input) => {
   console.log(input.message)
   return { ok: true }
 })
+```
 
-function useAssistantWithTools() {
+```tsx
+import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
+import { chat, defineAssistant } from '@tanstack/ai'
+import { openaiText } from '@tanstack/ai-openai'
+import { showToastDef, showToast } from './tools'
+
+// The same object your server route exports — share it from one module in a
+// real app; repeated here so this snippet type-checks on its own.
+const blogAssistant = defineAssistant({
+  chat: (req) =>
+    chat({
+      adapter: openaiText('gpt-5.5'),
+      messages: req.messages,
+      threadId: req.threadId,
+      runId: req.runId,
+      tools: [showToastDef], // definition only — the client executes it
+    }),
+})
+
+function useAssistantWithClientTool() {
   return useAssistant(blogAssistant, {
     connection: fetchServerSentEvents('/api/assistant'),
     chat: { tools: [showToast] },
@@ -306,6 +398,68 @@ function useAssistantWithTools() {
 }
 ```
 
-`assistant.chat.messages[number].parts` then narrows `tool-call` parts to
-`show_toast`'s inferred input/output, exactly as it would for `useChat({
-tools })`.
+## Structured Output
+
+If the `chat` callback passes `outputSchema` to `chat()`, `assistant.chat`
+picks up typed `partial` (progressive, `DeepPartial`) and `final` (validated
+terminal object) fields — the same inference
+[`useChat({ outputSchema })`](../structured-outputs/streaming) gives you:
+
+```tsx
+// components/BlogOutlineForm.tsx
+import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
+import { chat, defineAssistant } from '@tanstack/ai'
+import { openaiText } from '@tanstack/ai-openai'
+import { z } from 'zod'
+
+const BlogOutlineSchema = z.object({
+  title: z.string(),
+  sections: z.array(z.string()),
+})
+
+// The same object your server route exports — share it from one module in a
+// real app; repeated here so this snippet type-checks on its own.
+const blogAssistant = defineAssistant({
+  chat: (req) =>
+    chat({
+      adapter: openaiText('gpt-5.5'),
+      messages: req.messages,
+      threadId: req.threadId,
+      runId: req.runId,
+      outputSchema: BlogOutlineSchema,
+      stream: true,
+    }),
+})
+
+function BlogOutlineForm() {
+  const assistant = useAssistant(blogAssistant, {
+    connection: fetchServerSentEvents('/api/assistant'),
+  })
+
+  return (
+    <div>
+      <button
+        onClick={() =>
+          assistant.chat.sendMessage('Outline a blog post about red foxes')
+        }
+      >
+        Generate outline
+      </button>
+      <p>Title: {assistant.chat.partial.title ?? '…'}</p>
+      <ul>
+        {assistant.chat.partial.sections?.map((section, i) => (
+          <li key={i}>{section}</li>
+        ))}
+      </ul>
+      {assistant.chat.final && (
+        <pre>{JSON.stringify(assistant.chat.final, null, 2)}</pre>
+      )}
+    </div>
+  )
+}
+```
+
+`assistant.chat.partial` and `assistant.chat.final` only appear on the type
+when the `chat` callback declares `outputSchema` — omit it and
+`assistant.chat` has no `partial`/`final` fields, same as `useChat` without
+`outputSchema`.

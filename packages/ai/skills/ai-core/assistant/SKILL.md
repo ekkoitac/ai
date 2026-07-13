@@ -159,32 +159,67 @@ Vue/Solid/Svelte have identical patterns with different hook imports
 
 ## Core Patterns
 
-### 1. Typed chat tools via `chat: { tools }`
+### 1. Chat tools auto-type from the server callback; `chat: { tools }` is only for client-executed runtime
 
-Server-side tools passed to the `chat` callback (via `chat({ tools: [...] })`)
-drive the runtime behavior. To get typed tool-call parts on `assistant.chat`
-(narrowed by tool name), pass the client-side tool definitions through the
-`chat` option on `useAssistant`, exactly like `useChat({ tools })`:
+Tools passed to `chat({ tools: [...] })` inside the server callback
+automatically type `assistant.chat.messages`' tool-call/result parts —
+narrowed by tool name, input, and output — with **no** client-side
+re-declaration needed for typing:
 
 ```typescript
 import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
-import { assistant } from '../lib/assistant'
-import { getWeatherClientTool } from '../lib/tools'
+import { blogAssistant } from '../lib/assistant' // chat callback passed tools: [getWeather]
 
 const assistant = useAssistant(blogAssistant, {
   connection: fetchServerSentEvents('/api/assistant'),
-  chat: {
-    tools: [getWeatherClientTool],
-  },
 })
 
-// assistant.chat.messages parts now narrow tool-call parts by tool name
+// assistant.chat.messages parts are already narrowed by tool name — inferred
+// from the server callback's `tools: [getWeather]`, not from anything passed
+// here.
+```
+
+`chat: { tools }` on `useAssistant` still exists, but only for one reason:
+a client-**executed** tool's `.client()` implementation runs in the browser,
+so its code can't cross the wire — the server callback only ever sees the
+tool's *definition* (for the model and for typing). Pass the client
+implementation there to register its runtime:
+
+```typescript
+import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
+import { blogAssistant } from '../lib/assistant' // chat callback passed tools: [showToastDef]
+import { showToast } from '../lib/tools' // showToastDef.client((input) => ...)
+
+const assistant = useAssistant(blogAssistant, {
+  connection: fetchServerSentEvents('/api/assistant'),
+  chat: { tools: [showToast] }, // runtime only — types already came from the callback
+})
 ```
 
 `chat.forwardedProps` is also available on the same option, merged into
 every chat request alongside the reserved `capability` field.
 
-### 2. Manual chaining across capabilities
+### 2. Structured output via `outputSchema` in the chat callback
+
+If the `chat` callback passes `outputSchema` to `chat()`, `assistant.chat`
+picks up typed `partial` (progressive `DeepPartial`) and `final` (validated
+terminal object) fields — the same conditional shape `useChat({
+outputSchema })` returns. Omit `outputSchema` and neither field is present on
+the type.
+
+```typescript
+import { useAssistant, fetchServerSentEvents } from '@tanstack/ai-react'
+import { blogAssistant } from '../lib/assistant' // chat callback passed outputSchema: BlogOutlineSchema
+
+const assistant = useAssistant(blogAssistant, {
+  connection: fetchServerSentEvents('/api/assistant'),
+})
+
+assistant.chat.partial.title // string | undefined — fills in as JSON streams
+assistant.chat.final // full schema type | null — set once the run completes
+```
+
+### 3. Manual chaining across capabilities
 
 There is no auto-chaining or shared "artifact workspace" — `useAssistant`
 is a pure composition layer. To use one capability's result as input to
@@ -207,14 +242,14 @@ if (assistant.image.result) {
 }
 ```
 
-### 3. Only declared capabilities are constructed
+### 4. Only declared capabilities are constructed
 
 `defineAssistant({ chat, image })` produces a client `assistant` with exactly
 `assistant.chat` and `assistant.image` — no `assistant.audio`, `assistant.video`, etc.
 Add or remove capability keys on the server definition to change what the
 client can call; there's nothing else to keep in sync.
 
-### 4. Sharing one connection across capabilities
+### 5. Sharing one connection across capabilities
 
 All capabilities declared in one `defineAssistant` call share a single
 `connection` passed to `useAssistant` — one endpoint, one adapter. Each
@@ -271,8 +306,9 @@ There is no `model`/`tools`-for-generation option on `useAssistant` itself.
 Model choice and per-capability options belong inside the server callback
 (`openaiImage('gpt-image-2')`, `openaiSpeech('tts-1')`, …); the
 only client-side option `useAssistant` accepts besides `connection` is
-`chat: { tools, forwardedProps }` (for typed chat tool-call parts) and
-`threadId`/`id`.
+`chat: { tools, forwardedProps }` (`tools` here registers **client-executed**
+tools' runtime implementations only — typing already comes from the server
+callback) and `threadId`/`id`.
 
 ```typescript
 // WRONG — no such options on useAssistant

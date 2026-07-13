@@ -314,7 +314,8 @@
         {
           "label": "Assistant",
           "to": "assistant/index",
-          "addedAt": "2026-07-13"
+          "addedAt": "2026-07-13",
+          "updatedAt": "2026-07-13"
         }
       ]
     },
