@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import { defineAssistant } from '../../../src/activities/assistant/index.js'
+import type { AssistantConfig } from '../../../src/activities/assistant/types.js'
+import type { ChatStream } from '../../../src/types.js'
+
+// Compile-only: a streaming chat callback (the shape `chat()` returns by
+// default) must be assignable to `AssistantConfig['chat']` without a cast.
+// Regression test for the `any`-collapse bug where `TextActivityResult<any,
+// any>` silently dropped the default `ChatStream` branch.
+const _chatCbAssignable: AssistantConfig['chat'] = (_req) =>
+  undefined as unknown as ChatStream
+void _chatCbAssignable
 
 describe('defineAssistant', () => {
   it('is inert: does not invoke any capability callback at define time', () => {

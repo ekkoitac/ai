@@ -2,17 +2,18 @@
 import type { Context as AGUIContext } from '@ag-ui/core'
 import type {
   AudioGenerationResult,
+  ChatStream,
   ImageGenerationResult,
   JSONSchema,
   ModelMessage,
   StreamChunk,
+  StructuredOutputStream,
   SummarizationResult,
   TTSResult,
   TranscriptionResult,
   UIMessage,
   VideoJobResult,
 } from '../../types.js'
-import type { TextActivityResult } from '../chat/index.js'
 
 /** The parsed request handed to the `chat` capability callback. */
 export interface AssistantChatRequest {
@@ -79,7 +80,13 @@ type MaybeStream<TResult> = AsyncIterable<StreamChunk> | Promise<TResult>
 
 /** The shape a user passes to `defineAssistant`. Every key optional. */
 export interface AssistantConfig {
-  chat?: (req: AssistantChatRequest) => TextActivityResult<any, any>
+  chat?: (
+    req: AssistantChatRequest,
+  ) =>
+    | ChatStream
+    | StructuredOutputStream<any>
+    | Promise<string>
+    | Promise<object>
   image?: (req: AssistantImageRequest) => MaybeStream<ImageGenerationResult>
   audio?: (req: AssistantAudioRequest) => MaybeStream<AudioGenerationResult>
   speech?: (req: AssistantSpeechRequest) => MaybeStream<TTSResult>

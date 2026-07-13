@@ -1,9 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { chat, defineAssistant, generateImage, maxIterations } from '@tanstack/ai'
+import type { Provider } from '@/lib/types'
 import { createTextAdapter } from '@/lib/providers'
 import { createImageAdapter } from '@/lib/media-providers'
-import type { AssistantConfig } from '@tanstack/ai'
-import type { Provider } from '@/lib/types'
 
 export const Route = createFileRoute('/api/assistant')({
   server: {
@@ -24,17 +23,7 @@ export const Route = createFileRoute('/api/assistant')({
         }
 
         const assistant = defineAssistant({
-          // Cast: `AssistantConfig['chat']`'s declared return type
-          // (`TextActivityResult<any, any>`) resolves — via TS's
-          // any-produces-union-of-branches behavior on the nested
-          // conditional type — to `Promise<string> |
-          // StructuredOutputStream<unknown>`, which drops the default
-          // `ChatStream` branch entirely (a type-level gap in that generic
-          // instantiation, tracked separately). `chat()`'s actual default
-          // return (no `outputSchema`, no `stream: false`) is `ChatStream`,
-          // which `defineAssistant`'s handler correctly detects via
-          // `isAsyncIterable` at runtime — the runtime is fine either way.
-          chat: ((req) =>
+          chat: (req) =>
             chat({
               ...createTextAdapter(
                 provider,
@@ -47,7 +36,7 @@ export const Route = createFileRoute('/api/assistant')({
               agentLoopStrategy: maxIterations(5),
               threadId: req.threadId,
               runId: req.runId,
-            })) as NonNullable<AssistantConfig['chat']>,
+            }),
           image: (req) =>
             generateImage({
               adapter: createImageAdapter(provider, aimockPort, testId),
