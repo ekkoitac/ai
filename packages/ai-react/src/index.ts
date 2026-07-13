@@ -1,4 +1,5 @@
 export { useChat } from './use-chat'
+export { useAssistant } from './use-assistant'
 export { useRealtimeChat } from './use-realtime-chat'
 export { useMcpAppBridge } from './use-mcp-app-bridge'
 export type { UseMcpAppBridgeOptions } from './use-mcp-app-bridge'
