@@ -12,6 +12,7 @@ export { RealtimeClient } from './realtime-client'
 export { GenerationClient } from './generation-client'
 export { VideoGenerationClient } from './video-generation-client'
 export { AssistantClient } from './assistant-client'
+export { computeStructuredParts } from './assistant-structured'
 export type {
   AssistantClientOptions,
   AssistantSystem,
