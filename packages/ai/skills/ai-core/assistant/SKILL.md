@@ -59,7 +59,7 @@ export const assistant = defineAssistant({
 
   image: (req) =>
     generateImage({
-      adapter: openaiImage('gpt-image-1'),
+      adapter: openaiImage('gpt-image-2'),
       prompt: req.prompt,
       size: req.size,
       numberOfImages: req.numberOfImages,
@@ -67,7 +67,7 @@ export const assistant = defineAssistant({
 
   speech: (req) =>
     generateSpeech({
-      adapter: openaiSpeech('gpt-4o-mini-tts'),
+      adapter: openaiSpeech('tts-1'),
       text: req.text,
       voice: req.voice ?? 'alloy',
     }),
@@ -254,7 +254,7 @@ export const POST = (request: Request) => assistant.handler(request)
 
 There is no `model`/`tools`-for-generation option on `useAssistant` itself.
 Model choice and per-capability options belong inside the server callback
-(`openaiImage('gpt-image-1')`, `openaiSpeech('gpt-4o-mini-tts')`, …); the
+(`openaiImage('gpt-image-2')`, `openaiSpeech('tts-1')`, …); the
 only client-side option `useAssistant` accepts besides `connection` is
 `chat: { tools, forwardedProps }` (for typed chat tool-call parts) and
 `threadId`/`id`.
