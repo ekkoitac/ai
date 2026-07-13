@@ -22,14 +22,10 @@ describe('defineAssistant', () => {
     expect(typeof assistant.handler).toBe('function')
   })
 
-  it(
-    'is exported from the package root',
-    async () => {
-      const mod = await import('../../../src/index.js')
-      expect(typeof mod.defineAssistant).toBe('function')
-    },
-    30000,
-  )
+  it('is exported from the package root', async () => {
+    const mod = await import('../../../src/index.js')
+    expect(typeof mod.defineAssistant).toBe('function')
+  }, 30000)
 })
 
 function runAgentBody(capability: string, extra: Record<string, unknown> = {}) {
@@ -70,7 +66,7 @@ describe('assistant.handler', () => {
   })
 
   it('400s on an inherited Object.prototype key used as capability', async () => {
-    const assistant = defineAssistant({ chat: (async function* () {}) as any })
+    const assistant = defineAssistant({ chat: async function* () {} as any })
     const res = await assistant.handler(req(runAgentBody('toString')))
     expect(res.status).toBe(400)
   })
@@ -78,8 +74,16 @@ describe('assistant.handler', () => {
   it('routes chat and streams the callback iterable', async () => {
     const assistant = defineAssistant({
       chat: async function* (r: any) {
-        yield { type: 'RUN_STARTED', threadId: r.threadId, runId: r.runId } as any
-        yield { type: 'RUN_FINISHED', threadId: r.threadId, runId: r.runId } as any
+        yield {
+          type: 'RUN_STARTED',
+          threadId: r.threadId,
+          runId: r.runId,
+        } as any
+        yield {
+          type: 'RUN_FINISHED',
+          threadId: r.threadId,
+          runId: r.runId,
+        } as any
       },
     })
     const res = await assistant.handler(req(runAgentBody('chat')))

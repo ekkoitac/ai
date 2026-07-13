@@ -7,8 +7,7 @@ import { createAssistant } from '../src/create-assistant.svelte.js'
 // branching on the `capability` discriminator forwarded by AssistantClient.
 function fakeConnection() {
   return stream(async function* (_messages, data) {
-    const capability = (data as Record<string, unknown> | undefined)
-      ?.capability
+    const capability = (data as Record<string, unknown> | undefined)?.capability
 
     if (capability === 'chat') {
       yield { type: 'RUN_STARTED', threadId: 't', runId: 'r' } as any

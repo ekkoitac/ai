@@ -1,5 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { chat, defineAssistant, generateImage, maxIterations } from '@tanstack/ai'
+import {
+  chat,
+  defineAssistant,
+  generateImage,
+  maxIterations,
+} from '@tanstack/ai'
 import { fetchServerSentEvents, useAssistant } from '@tanstack/ai-react'
 import { ChatUI } from '@/components/ChatUI'
 import { createTextAdapter } from '@/lib/providers'

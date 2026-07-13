@@ -78,8 +78,10 @@ describe('AssistantClient', () => {
     expectTypeOf<Sys>().toHaveProperty('image')
     // @ts-expect-error speech was not declared
     expectTypeOf<Sys>().toHaveProperty('speech')
-    expectTypeOf<Sys['image']['result']>().toMatchTypeOf<
-      { id: string; model: string; images: Array<any> } | null
-    >()
+    expectTypeOf<Sys['image']['result']>().toMatchTypeOf<{
+      id: string
+      model: string
+      images: Array<any>
+    } | null>()
   })
 })

@@ -43,8 +43,17 @@ it's safe to import into an isomorphic module shared with the client.
 
 ```typescript
 // src/lib/assistant.ts — shared/isomorphic module
-import { chat, defineAssistant, generateImage, generateSpeech } from '@tanstack/ai'
-import { openaiText, openaiImage, openaiSpeech } from '@tanstack/ai-openai/adapters'
+import {
+  chat,
+  defineAssistant,
+  generateImage,
+  generateSpeech,
+} from '@tanstack/ai'
+import {
+  openaiText,
+  openaiImage,
+  openaiSpeech,
+} from '@tanstack/ai-openai/adapters'
 import { getWeather } from './tools'
 
 export const assistant = defineAssistant({
@@ -113,7 +122,9 @@ function AssistantPanel() {
           <div key={message.id}>{message.role}</div>
         ))}
       </div>
-      <button onClick={() => system.chat.sendMessage('What can you help with?')}>
+      <button
+        onClick={() => system.chat.sendMessage('What can you help with?')}
+      >
         Ask
       </button>
 
@@ -241,7 +252,9 @@ guarantee — it now runs provider setup at import time.
 export const POST = async (request: Request) => {
   const body = await request.json()
   if (body.capability === 'chat') {
-    return toServerSentEventsResponse(chat({ adapter, messages: body.messages }))
+    return toServerSentEventsResponse(
+      chat({ adapter, messages: body.messages }),
+    )
   }
   // ...manual branching for every capability
 }
@@ -277,7 +290,10 @@ system.chat.sendMessage('use the image I just generated')
 // CORRECT — thread the result value through explicitly (see Core Pattern 2)
 system.chat.sendMessage({
   content: [
-    { type: 'image', source: { type: 'url', value: system.image.result.images[0].url } },
+    {
+      type: 'image',
+      source: { type: 'url', value: system.image.result.images[0].url },
+    },
     { type: 'text', content: 'Use this image.' },
   ],
 })

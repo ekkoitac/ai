@@ -1,5 +1,9 @@
 import { test, expect } from './fixtures'
-import { getLastAssistantMessage, sendMessage, waitForResponse } from './helpers'
+import {
+  getLastAssistantMessage,
+  sendMessage,
+  waitForResponse,
+} from './helpers'
 import { providersFor } from './test-matrix'
 
 // The assistant feature has its own dedicated page (`/assistant`) that drives

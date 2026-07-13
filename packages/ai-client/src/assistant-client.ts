@@ -63,7 +63,9 @@ export class AssistantClient<
   }
 
   /** The one-shot `GenerationClient` for a declared capability, if any. */
-  get(capability: OneShotCapabilityName): GenerationClient<any, any, any> | undefined {
+  get(
+    capability: OneShotCapabilityName,
+  ): GenerationClient<any, any, any> | undefined {
     return this.oneShots.get(capability)
   }
 

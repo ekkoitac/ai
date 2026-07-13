@@ -96,9 +96,7 @@ describe('useAssistant', () => {
       (m: any) => m.role === 'assistant',
     )
     expect(assistantMessage).toBeDefined()
-    const textPart = assistantMessage?.parts.find(
-      (p: any) => p.type === 'text',
-    )
+    const textPart = assistantMessage?.parts.find((p: any) => p.type === 'text')
     expect(textPart?.content).toBe('Hello from assistant')
   })
 

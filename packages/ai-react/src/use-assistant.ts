@@ -74,9 +74,7 @@ export function useAssistant<
 
   const optionsRef = useRef(options)
   optionsRef.current = options
-  const activeClientRef = useRef<AssistantClient<TDef, TChatTools> | null>(
-    null,
-  )
+  const activeClientRef = useRef<AssistantClient<TDef, TChatTools> | null>(null)
 
   const [chatState, setChatState] = useState<ChatState>(initialChatState)
   const [oneShotState, setOneShotState] = useState<

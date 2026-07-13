@@ -94,12 +94,16 @@ export interface AssistantConfig {
   transcription?: (
     req: AssistantTranscriptionRequest,
   ) => MaybeStream<TranscriptionResult>
-  summarize?: (req: AssistantSummarizeRequest) => MaybeStream<SummarizationResult>
+  summarize?: (
+    req: AssistantSummarizeRequest,
+  ) => MaybeStream<SummarizationResult>
 }
 
 export type AssistantCapabilityName = keyof AssistantConfig
 
-export interface AssistantDefinition<T extends AssistantConfig = AssistantConfig> {
+export interface AssistantDefinition<
+  T extends AssistantConfig = AssistantConfig,
+> {
   /** The declared capability names (for the client to enumerate). */
   readonly capabilities: ReadonlyArray<keyof T & string>
   /** Single request handler; routes by the `capability` discriminator. */

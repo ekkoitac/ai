@@ -1,4 +1,10 @@
-import { createMemo, createSignal, createUniqueId, onCleanup, onMount } from 'solid-js'
+import {
+  createMemo,
+  createSignal,
+  createUniqueId,
+  onCleanup,
+  onMount,
+} from 'solid-js'
 
 import { AssistantClient } from '@tanstack/ai-client'
 import type {
@@ -87,9 +93,8 @@ export function useAssistant<
       initialOneShotState[capability] = { ...defaultOneShotState }
     }
   }
-  const [oneShotState, setOneShotState] = createSignal<
-    Record<string, OneShotState>
-  >(initialOneShotState)
+  const [oneShotState, setOneShotState] =
+    createSignal<Record<string, OneShotState>>(initialOneShotState)
 
   // Build the AssistantClient with every reactive callback wired through the
   // constructor's `callbacks` option (VP2: ChatClient/GenerationClient only
@@ -120,22 +125,34 @@ export function useAssistant<
           onResultChange: (result) =>
             setOneShotState((s) => ({
               ...s,
-              [capability]: { ...(s[capability] ?? defaultOneShotState), result },
+              [capability]: {
+                ...(s[capability] ?? defaultOneShotState),
+                result,
+              },
             })),
           onLoadingChange: (isLoading) =>
             setOneShotState((s) => ({
               ...s,
-              [capability]: { ...(s[capability] ?? defaultOneShotState), isLoading },
+              [capability]: {
+                ...(s[capability] ?? defaultOneShotState),
+                isLoading,
+              },
             })),
           onErrorChange: (error) =>
             setOneShotState((s) => ({
               ...s,
-              [capability]: { ...(s[capability] ?? defaultOneShotState), error },
+              [capability]: {
+                ...(s[capability] ?? defaultOneShotState),
+                error,
+              },
             })),
           onStatusChange: (status) =>
             setOneShotState((s) => ({
               ...s,
-              [capability]: { ...(s[capability] ?? defaultOneShotState), status },
+              [capability]: {
+                ...(s[capability] ?? defaultOneShotState),
+                status,
+              },
             })),
         }),
       },

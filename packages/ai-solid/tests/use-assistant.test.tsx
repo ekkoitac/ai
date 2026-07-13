@@ -13,12 +13,8 @@ import { createTextChunks } from './test-utils'
  * chat, `body.capability` for one-shot generation.
  */
 function createAssistantConnection() {
-  return stream(async function* (
-    _messages,
-    data,
-  ): AsyncGenerator<StreamChunk> {
-    const capability = (data as Record<string, unknown> | undefined)
-      ?.capability
+  return stream(async function* (_messages, data): AsyncGenerator<StreamChunk> {
+    const capability = (data as Record<string, unknown> | undefined)?.capability
 
     if (capability === 'chat') {
       yield* createTextChunks('Hello from chat')

@@ -121,7 +121,8 @@ export function useAssistant<
       },
       oneShot: (capability) => ({
         onResultChange: (result) => updateOneShot(capability, { result }),
-        onLoadingChange: (isLoading) => updateOneShot(capability, { isLoading }),
+        onLoadingChange: (isLoading) =>
+          updateOneShot(capability, { isLoading }),
         onErrorChange: (error) => updateOneShot(capability, { error }),
         onStatusChange: (status) => updateOneShot(capability, { status }),
       }),
