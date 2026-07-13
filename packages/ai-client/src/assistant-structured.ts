@@ -17,9 +17,10 @@ import type { UIMessage } from './types.js'
  * assistants — otherwise a `final` from a previous session would leak into
  * the hook value on first render.
  */
-export function computeStructuredParts(
-  messages: ReadonlyArray<UIMessage>,
-): { partial: unknown; final: unknown } {
+export function computeStructuredParts(messages: ReadonlyArray<UIMessage>): {
+  partial: unknown
+  final: unknown
+} {
   let lastUserIndex = -1
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i]?.role === 'user') {

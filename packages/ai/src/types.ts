@@ -1539,24 +1539,27 @@ export interface ChatResultMeta<TTools, TSchema, TStream> {
 }
 
 /** Recovers the tool set passed to `chat({ tools })` from its return type. */
-export type InferChatTools<T> =
-  T extends { '~chatMeta'?: { tools: infer TTools } | undefined }
-    ? TTools
-    : never
+export type InferChatTools<T> = T extends {
+  '~chatMeta'?: { tools: infer TTools } | undefined
+}
+  ? TTools
+  : never
 
 /** Recovers the `outputSchema` passed to `chat({ outputSchema })` from its
  *  return type. `undefined` when no schema was provided. */
-export type InferChatSchema<T> =
-  T extends { '~chatMeta'?: { schema: infer TSchema } | undefined }
-    ? TSchema
-    : undefined
+export type InferChatSchema<T> = T extends {
+  '~chatMeta'?: { schema: infer TSchema } | undefined
+}
+  ? TSchema
+  : undefined
 
 /** Recovers the `stream` option passed to `chat({ stream })` from its return
  *  type. */
-export type InferChatStream<T> =
-  T extends { '~chatMeta'?: { stream: infer TStream } | undefined }
-    ? TStream
-    : boolean
+export type InferChatStream<T> = T extends {
+  '~chatMeta'?: { stream: infer TStream } | undefined
+}
+  ? TStream
+  : boolean
 
 // ============================================================================
 // AG-UI Reasoning Event Interfaces

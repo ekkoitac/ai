@@ -182,7 +182,7 @@ const assistant = useAssistant(blogAssistant, {
 `chat: { tools }` on `useAssistant` still exists, but only for one reason:
 a client-**executed** tool's `.client()` implementation runs in the browser,
 so its code can't cross the wire — the server callback only ever sees the
-tool's *definition* (for the model and for typing). Pass the client
+tool's _definition_ (for the model and for typing). Pass the client
 implementation there to register its runtime:
 
 ```typescript
