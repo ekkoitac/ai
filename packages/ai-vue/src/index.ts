@@ -7,6 +7,8 @@ export type {
   ChatRequestBody,
 } from './types'
 
+export { useAssistant } from './use-assistant'
+
 // Generation hooks
 export { useGeneration } from './use-generation'
 export type {
