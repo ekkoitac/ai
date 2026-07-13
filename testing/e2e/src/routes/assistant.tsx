@@ -6,9 +6,8 @@ import {
   maxIterations,
 } from '@tanstack/ai'
 import { fetchServerSentEvents, useAssistant } from '@tanstack/ai-react'
+import { openaiImage, openaiText } from '@tanstack/ai-openai'
 import { ChatUI } from '@/components/ChatUI'
-import { createTextAdapter } from '@/lib/providers'
-import { createImageAdapter } from '@/lib/media-providers'
 import type { Provider } from '@/lib/types'
 
 export interface AssistantRouteSearch {
@@ -52,10 +51,15 @@ export const Route = createFileRoute('/assistant')({
 // the server route `/api/assistant`, which defines its own (real) callbacks.
 // Mirroring the server route's two capabilities (chat + image) here just
 // keeps the client types in sync with what the server actually supports.
+//
+// Uses the single-provider openai adapters directly (not the multi-provider
+// `@/lib/providers` / `@/lib/media-providers` factories) so the browser
+// bundle doesn't pull in every provider SDK (e.g. ollama's `node:fs`) — the
+// callbacks are inert on the client, so only their return TYPES matter.
 const assistant = defineAssistant({
   chat: (req) =>
     chat({
-      ...createTextAdapter('openai'),
+      adapter: openaiText('gpt-5.5'),
       messages: req.messages,
       agentLoopStrategy: maxIterations(5),
       threadId: req.threadId,
@@ -63,7 +67,7 @@ const assistant = defineAssistant({
     }),
   image: (req) =>
     generateImage({
-      adapter: createImageAdapter('openai'),
+      adapter: openaiImage('gpt-image-2'),
       prompt: req.prompt as string,
     }),
 })
