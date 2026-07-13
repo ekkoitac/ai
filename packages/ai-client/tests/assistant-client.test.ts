@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { defineAssistant } from '@tanstack/ai'
 import { AssistantClient } from '../src/assistant-client.js'
 import { fetchServerSentEvents } from '../src/connection-adapters.js'
+import type { AssistantSystem } from '../src/assistant-types.js'
 
 describe('AssistantClient', () => {
   it('creates one sub-client per declared capability', () => {
@@ -65,5 +66,20 @@ describe('AssistantClient', () => {
     expect(chatDisposeCalls).toHaveLength(1)
     expect(imageDisposeCalls).toHaveLength(1)
     expect(speechDisposeCalls).toHaveLength(1)
+  })
+
+  it('AssistantSystem exposes only declared capabilities, typed', () => {
+    const assistant = defineAssistant({
+      chat: async function* () {} as any,
+      image: async () => ({ id: '', model: '', images: [] }) as any,
+    })
+    type Sys = AssistantSystem<typeof assistant>
+    expectTypeOf<Sys>().toHaveProperty('chat')
+    expectTypeOf<Sys>().toHaveProperty('image')
+    // @ts-expect-error speech was not declared
+    expectTypeOf<Sys>().toHaveProperty('speech')
+    expectTypeOf<Sys['image']['result']>().toMatchTypeOf<
+      { id: string; model: string; images: Array<any> } | null
+    >()
   })
 })

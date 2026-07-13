@@ -11,6 +11,15 @@ export type { McpAppBridge, CreateMcpAppBridgeOptions } from './mcp-app-bridge'
 export { RealtimeClient } from './realtime-client'
 export { GenerationClient } from './generation-client'
 export { VideoGenerationClient } from './video-generation-client'
+export { AssistantClient } from './assistant-client'
+export type {
+  AssistantClientOptions,
+  AssistantSystem,
+  AssistantChatSurface,
+  AssistantGenerationSurface,
+  CapabilitySurface,
+  OneShotCapabilityName,
+} from './assistant-types'
 export type {
   // Core message types (re-exported from @tanstack/ai via types.ts)
   UIMessage,

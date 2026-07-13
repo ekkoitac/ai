@@ -8,12 +8,19 @@ import type {
   TranscriptionResult,
   VideoJobResult,
 } from '@tanstack/ai'
-import type { AnyClientTool } from '@tanstack/ai/client'
+import type { AnyClientTool, ModelMessage } from '@tanstack/ai/client'
 import type { ConnectConnectionAdapter } from './connection-adapters.js'
-import type { ChatClientOptions } from './types.js'
+import type {
+  ChatClientOptions,
+  ChatClientState,
+  ConnectionStatus,
+  MultimodalContent,
+  UIMessage,
+} from './types.js'
 import type {
   AudioGenerateInput,
   GenerationClientOptions,
+  GenerationClientState,
   ImageGenerateInput,
   SpeechGenerateInput,
   SummarizeGenerateInput,
@@ -96,3 +103,123 @@ export interface ResultByCapability {
 }
 
 export type OneShotCapabilityName = keyof GenerateInputByCapability
+
+/** The chat capability surface — mirrors the frameworks' useChat return. */
+export interface AssistantChatSurface<
+  TTools extends ReadonlyArray<AnyClientTool> = [],
+> {
+  /** Current messages in the conversation. */
+  messages: Array<UIMessage<TTools>>
+
+  /**
+   * Send a message and get a response.
+   * Can be a simple string or multimodal content with images, audio, etc.
+   */
+  sendMessage: (content: string | MultimodalContent) => Promise<void>
+
+  /**
+   * Append a message to the conversation.
+   */
+  append: (message: ModelMessage | UIMessage<TTools>) => Promise<void>
+
+  /**
+   * Reload the last assistant message.
+   */
+  reload: () => Promise<void>
+
+  /**
+   * Stop the current response generation.
+   */
+  stop: () => void
+
+  /**
+   * Clear all messages.
+   */
+  clear: () => void
+
+  /**
+   * Set messages manually.
+   */
+  setMessages: (messages: Array<UIMessage<TTools>>) => void
+
+  /**
+   * Add the result of a client-side tool execution.
+   */
+  addToolResult: (result: {
+    toolCallId: string
+    tool: string
+    output: any
+    state?: 'output-available' | 'output-error'
+    errorText?: string
+  }) => Promise<void>
+
+  /**
+   * Respond to a tool approval request.
+   */
+  addToolApprovalResponse: (response: {
+    id: string // approval.id, not toolCallId
+    approved: boolean
+  }) => Promise<void>
+
+  /**
+   * Whether a response is currently being generated.
+   */
+  isLoading: boolean
+
+  /**
+   * Current error, if any.
+   */
+  error: Error | undefined
+
+  /**
+   * Current status of the chat client.
+   */
+  status: ChatClientState
+
+  /**
+   * Whether the subscription loop is currently active.
+   */
+  isSubscribed: boolean
+
+  /**
+   * Current connection lifecycle status.
+   */
+  connectionStatus: ConnectionStatus
+
+  /**
+   * Whether the shared session is actively generating.
+   */
+  sessionGenerating: boolean
+}
+
+/** The one-shot capability surface — mirrors useGeneration return. */
+export interface AssistantGenerationSurface<TInput, TResult> {
+  generate: (input: TInput) => Promise<void>
+  result: TResult | null
+  isLoading: boolean
+  error: Error | undefined
+  status: GenerationClientState
+  stop: () => void
+  reset: () => void
+}
+
+/** Map a capability name to its client surface. */
+export type CapabilitySurface<
+  TCapability extends string,
+  TChatTools extends ReadonlyArray<AnyClientTool>,
+> = TCapability extends 'chat'
+  ? AssistantChatSurface<TChatTools>
+  : TCapability extends OneShotCapabilityName
+    ? AssistantGenerationSurface<
+        GenerateInputByCapability[TCapability],
+        ResultByCapability[TCapability]
+      >
+    : never
+
+/** The full typed system returned by useAssistant. */
+export type AssistantSystem<
+  TDef extends AssistantDefinition<any>,
+  TChatTools extends ReadonlyArray<AnyClientTool> = [],
+> = {
+  [K in keyof TDef['~caps'] & string]: CapabilitySurface<K, TChatTools>
+}
